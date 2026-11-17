@@ -1,17 +1,10 @@
-// ============================================================
-//  RAI 2026 - Autonomous robot (maze, entrance 1 (A))
-//  Hardcoded route + gyro heading + ultrasonic distance
-// ============================================================
+//ฮาร์ดโค้ดตอนเลี้ยวกันชนT_T
 #include <Wire.h>
-
-// ---------------- structure ----------------
 struct Step {
-  char type;   // 'F' = forward value cells, 'L' = turn left 90, 'R' = turn right 90
+  char type;
   int  value;
 };
 
-// ---------------- routes (array of structure) ----------------
-// Route 1: enter parking zone from the side
 Step routeA1[] = {
   {'F', 2}, {'R', 0}, {'F', 1}, {'R', 0}, {'F', 1}, {'L', 0}, {'F', 1}, {'L', 0},
   {'F', 1}, {'R', 0}, {'F', 1}, {'R', 0}, {'F', 1}, {'L', 0}, {'F', 3}
@@ -27,40 +20,39 @@ Step routeA2[] = {
 const int ROUTE_A2_LEN = sizeof(routeA2) / sizeof(routeA2[0]);
 
 // ---------------- settings ----------------
-const int  ROUTE_CHOICE = 1;        // 1 = routeA1, 2 = routeA2
-const bool MIRROR = false;          // true = swap L/R (other side of arena)
-const unsigned long START_DELAY_MS = 3000;   // wait after gyro calibration
-const unsigned long AUTO_LIMIT_MS  = 88000;  // stop by itself before 90 s
+const int  ROUTE_CHOICE = 1;       
+const bool MIRROR = false;         
+const unsigned long START_DELAY_MS = 3000; 
+const unsigned long AUTO_LIMIT_MS  = 88000;  
 
-int BASE_SPEED = 150;               // forward speed (0-255)
-int TURN_SPEED = 150;               // turning speed
-int TURN_SLOW  = 110;               // turning speed when close to target angle
-const unsigned long MS_PER_CELL = 700;   // time for 1 cell, only used as safety limit
+int BASE_SPEED = 150;               
+int TURN_SPEED = 150;               
+int TURN_SLOW  = 110;              
+const unsigned long MS_PER_CELL = 700;   
 const int   CELL_CM        = 20;
-const int   WALL_STOP_CM   = 6;     // never go closer than this to the front wall
-const int   ARRIVE_TOL     = 1;     // arrive tolerance (cm)
-const int   SIDE_WALL_CM   = 14;    // closer than this = side wall exists
-const int   SIDE_TARGET_CM = 4;     // side sensor to wall when centered (measure it!)
-const float KP      = 3.0;          // heading hold gain
-const float KP_SIDE = 1.5;          // side centering gain
+const int   WALL_STOP_CM   = 6;     
+const int   ARRIVE_TOL     = 1;    
+const int   SIDE_WALL_CM   = 14;    
+const int   SIDE_TARGET_CM = 4;     
+const float KP      = 3.0;          
+const float KP_SIDE = 1.5;          
 
 // ---------------- pins ----------------
-const int ENA = 9, IN1 = 8, IN2 = 7;     // right motor (OUT1/OUT2)
-const int ENB = 3, IN3 = 5, IN4 = 4;     // left motor (OUT3/OUT4)
-const int TRIG_F = 2,  ECHO_F = 6;       // front ultrasonic
-const int TRIG_L = 11, ECHO_L = 12;      // left ultrasonic
-const int TRIG_R = A0, ECHO_R = A1;      // right ultrasonic
-const int IR_PIN = 10;                   // IR (not used in the route)
+const int ENA = 9, IN1 = 8, IN2 = 7;     
+const int ENB = 3, IN3 = 5, IN4 = 4;     
+const int TRIG_F = 2,  ECHO_F = 6;       
+const int TRIG_L = 11, ECHO_L = 12;      
+const int TRIG_R = A0, ECHO_R = A1;      
+const int IR_PIN = 10;                   
 
 // ---------------- MPU6050 ----------------
 const int MPU_ADDR = 0x68;
 float gyroZoffset = 0;
-float yaw = 0;                    // accumulated angle (+ = left / counter-clockwise)
+float yaw = 0;                  
 float targetHeading = 0;
 unsigned long lastMicros = 0;
 unsigned long matchStart = 0;
 
-// ---------------- motors ----------------
 void setMotor(int en, int a, int b, int spd) {
   spd = constrain(spd, -255, 255);
   if (spd > 0)      { digitalWrite(a, HIGH); digitalWrite(b, LOW); }
@@ -69,7 +61,6 @@ void setMotor(int en, int a, int b, int spd) {
   analogWrite(en, abs(spd));
 }
 
-// l = left wheel, r = right wheel (+ = forward)
 void drive(int l, int r) {
   setMotor(ENB, IN3, IN4, l);
   setMotor(ENA, IN1, IN2, r);
@@ -77,7 +68,7 @@ void drive(int l, int r) {
 
 void stopMotors() { drive(0, 0); }
 
-// ---------------- time limit ----------------
+//  อย่าเกินเวลาเด้อออ 
 void checkTimeUp() {
   if (millis() - matchStart > AUTO_LIMIT_MS) {
     stopMotors();
@@ -85,7 +76,6 @@ void checkTimeUp() {
   }
 }
 
-// ---------------- ultrasonic ----------------
 long readCm(int trig, int echo) {
   digitalWrite(trig, LOW);  delayMicroseconds(2);
   digitalWrite(trig, HIGH); delayMicroseconds(10);
@@ -107,7 +97,6 @@ long readCmMedian(int trig, int echo) {
   return v[1];
 }
 
-// ---------------- gyro ----------------
 int16_t readGyroZraw() {
   Wire.beginTransmission(MPU_ADDR);
   Wire.write(0x47);
@@ -133,7 +122,6 @@ void updateYaw() {
   if (abs(rate) > 0.3) yaw += rate * dt;
 }
 
-// ---------------- movement ----------------
 void turn90(bool left) {
   targetHeading += left ? 90 : -90;
   stopMotors();
@@ -204,7 +192,6 @@ void runRoute(Step *route, int len) {
   }
 }
 
-// ---------------- setup / loop ----------------
 void setup() {
   Serial.begin(9600);
 
@@ -219,12 +206,12 @@ void setup() {
 
   Wire.begin();
   Wire.beginTransmission(MPU_ADDR);
-  Wire.write(0x6B);                // wake MPU6050
+  Wire.write(0x6B);                
   Wire.write(0);
   Wire.endTransmission(true);
 
   delay(1000);
-  calibrateGyro();                 // keep the robot still here
+  calibrateGyro();               
   delay(START_DELAY_MS);
 
   matchStart = millis();
